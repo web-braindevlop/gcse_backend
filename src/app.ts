@@ -11,6 +11,9 @@ import { studentsRouter } from "./routes/students.routes.js";
 
 export const app = express();
 
+// Hostinger proxies requests to the app and supplies X-Forwarded-For.
+// Trust only the single proxy hop so express-rate-limit can identify client IPs.
+app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
