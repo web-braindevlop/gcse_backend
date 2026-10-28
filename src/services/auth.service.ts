@@ -194,6 +194,14 @@ export async function findUserBySession(token: string): Promise<PublicUser | nul
   return rows[0] ? toPublicUser(rows[0]) : null;
 }
 
+export async function findUserBySessions(tokens: readonly string[]): Promise<PublicUser | null> {
+  for (const token of new Set(tokens.filter(Boolean))) {
+    const user = await findUserBySession(token);
+    if (user) return user;
+  }
+  return null;
+}
+
 export async function deleteUserSession(token: string) {
   const hash = digestToken(token);
   await Promise.all([

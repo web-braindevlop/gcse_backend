@@ -7,7 +7,7 @@ import {
   createUserSession,
   deleteUserSession,
   findUserByIdentifier,
-  findUserBySession,
+  findUserBySessions,
   hashPassword,
   verifyPassword,
   type UserRole,
@@ -44,11 +44,14 @@ function clearSessionCookies(response: Parameters<RequestHandler>[1]) {
   response.clearCookie(SESSION_COOKIE, hostOnlyCookieOptions());
 }
 
-function sessionTokenFromRequest(request: Parameters<RequestHandler>[0]) {
+function sessionTokensFromRequest(request: Parameters<RequestHandler>[0]) {
   const cookieHeader = request.headers.cookie;
-  if (!cookieHeader) return null;
-  const pair = cookieHeader.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-  return pair ? pair.slice(SESSION_COOKIE.length + 1) : null;
+  if (!cookieHeader) return [];
+  return cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .filter((part) => part.startsWith(`${SESSION_COOKIE}=`))
+    .map((part) => part.slice(SESSION_COOKIE.length + 1));
 }
 
 function invalidInput(response: Parameters<RequestHandler>[1], message: string, details: unknown) {
@@ -107,13 +110,13 @@ export const loginStudent = createLoginHandler("student");
 export const loginStaff = createLoginHandler("staff");
 
 export const currentUser: RequestHandler = async (request, response, next) => {
-  const token = sessionTokenFromRequest(request);
-  if (!token) {
+  const tokens = sessionTokensFromRequest(request);
+  if (tokens.length === 0) {
     response.status(401).json({ error: { message: "You are not signed in." } });
     return;
   }
   try {
-    const user = await findUserBySession(token);
+    const user = await findUserBySessions(tokens);
     if (!user) {
       clearSessionCookies(response);
       response.status(401).json({ error: { message: "Your session has expired. Please sign in again." } });
@@ -126,9 +129,9 @@ export const currentUser: RequestHandler = async (request, response, next) => {
 };
 
 export const logout: RequestHandler = async (request, response, next) => {
-  const token = sessionTokenFromRequest(request);
+  const tokens = sessionTokensFromRequest(request);
   try {
-    if (token) await deleteUserSession(token);
+    await Promise.all(tokens.map(deleteUserSession));
     clearSessionCookies(response);
     response.status(204).end();
   } catch (error) {
