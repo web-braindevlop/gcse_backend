@@ -5,6 +5,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
   CORS_ORIGIN: z.string().url().optional(),
+  COOKIE_DOMAIN: z.string().min(1).optional(),
   MYSQL_HOST: z.string().min(1).optional(),
   MYSQL_PORT: z.coerce.number().int().min(1).max(65_535).default(3306),
   MYSQL_USER: z.string().min(1).optional(),
@@ -38,6 +39,7 @@ if (result.data.NODE_ENV === "production") {
 export const env = {
   ...result.data,
   CORS_ORIGIN: result.data.CORS_ORIGIN ?? "http://localhost:3000",
+  COOKIE_DOMAIN: result.data.COOKIE_DOMAIN,
   MYSQL_HOST: result.data.MYSQL_HOST ?? "127.0.0.1",
   MYSQL_USER: result.data.MYSQL_USER ?? "root",
   MYSQL_PASSWORD: result.data.MYSQL_PASSWORD ?? "",

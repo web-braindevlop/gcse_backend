@@ -23,7 +23,13 @@ const registerSchema = z.object({
 });
 
 function cookieOptions() {
-  return { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" };
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    ...(env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN } : {}),
+  };
 }
 
 function sessionTokenFromRequest(request: Parameters<RequestHandler>[0]) {

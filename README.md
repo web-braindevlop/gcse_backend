@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-The API listens on `http://localhost:4000` by default. For production, set `NODE_ENV=production`, `PORT`, `CORS_ORIGIN`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in Hostinger's Node.js app environment settings. Hostinger MySQL connections from a Node.js app use `127.0.0.1`; enter the exact database and user names shown in hPanel. Production startup refuses to run with missing database credentials or CORS origin.
+The API listens on `http://localhost:4000` by default. For production, set `NODE_ENV=production`, `PORT`, `CORS_ORIGIN`, `COOKIE_DOMAIN`, `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, and `MYSQL_DATABASE` in Hostinger's Node.js app environment settings. Set `COOKIE_DOMAIN=gcse.cloud` when the frontend is hosted at `gcse.cloud` and the API at `api.gcse.cloud`; this lets the frontend server verify the API-issued session cookie. Hostinger MySQL connections from a Node.js app use `127.0.0.1`; enter the exact database and user names shown in hPanel. Production startup refuses to run with missing database credentials or CORS origin.
 
 Database schema changes are not run automatically when the API starts. After taking a database backup and reviewing the migration, build the app and run `npm run db:migrate` once from the backend app directory. This creates the application tables and migrates legacy admin accounts/sessions into their separate tables; do not run it against live data until the backup and target database are confirmed.
 
