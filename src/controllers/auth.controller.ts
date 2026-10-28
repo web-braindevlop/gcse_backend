@@ -32,6 +32,18 @@ function cookieOptions() {
   };
 }
 
+function hostOnlyCookieOptions() {
+  return { httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax" as const, path: "/" };
+}
+
+function clearSessionCookies(response: Parameters<RequestHandler>[1]) {
+  // Remove the old API-host-only cookie as well as the shared-domain cookie.
+  // Browsers can send both when they share a name and path, which makes the
+  // session selected by the API dependent on cookie ordering.
+  if (env.COOKIE_DOMAIN) response.clearCookie(SESSION_COOKIE, cookieOptions());
+  response.clearCookie(SESSION_COOKIE, hostOnlyCookieOptions());
+}
+
 function sessionTokenFromRequest(request: Parameters<RequestHandler>[0]) {
   const cookieHeader = request.headers.cookie;
   if (!cookieHeader) return null;
@@ -54,6 +66,7 @@ export const register: RequestHandler = async (request, response, next) => {
     const passwordHash = await hashPassword(values.password);
     const userId = await createUser({ username, email, displayName: values.displayName, passwordHash, role: "student" });
     const session = await createUserSession(userId, "student");
+    response.clearCookie(SESSION_COOKIE, hostOnlyCookieOptions());
     response.cookie(SESSION_COOKIE, session.token, { ...cookieOptions(), maxAge: session.maxAge });
     response.status(201).json({ user: { id: userId, username, email, displayName: values.displayName, role: "student" } });
   } catch (error) {
@@ -79,6 +92,7 @@ function createLoginHandler(audience: "student" | "staff"): RequestHandler {
         return;
       }
       const session = await createUserSession(user.id, user.role);
+      response.clearCookie(SESSION_COOKIE, hostOnlyCookieOptions());
       response.cookie(SESSION_COOKIE, session.token, { ...cookieOptions(), maxAge: session.maxAge });
       response.status(200).json({
         user: { id: user.id, username: user.username, email: user.email, displayName: user.display_name, role: user.role },
@@ -101,7 +115,7 @@ export const currentUser: RequestHandler = async (request, response, next) => {
   try {
     const user = await findUserBySession(token);
     if (!user) {
-      response.clearCookie(SESSION_COOKIE, cookieOptions());
+      clearSessionCookies(response);
       response.status(401).json({ error: { message: "Your session has expired. Please sign in again." } });
       return;
     }
@@ -115,7 +129,7 @@ export const logout: RequestHandler = async (request, response, next) => {
   const token = sessionTokenFromRequest(request);
   try {
     if (token) await deleteUserSession(token);
-    response.clearCookie(SESSION_COOKIE, cookieOptions());
+    clearSessionCookies(response);
     response.status(204).end();
   } catch (error) {
     next(error);
