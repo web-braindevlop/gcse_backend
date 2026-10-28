@@ -49,6 +49,6 @@ npm run build
 npm start
 ```
 
-`npm start` runs the compiled JavaScript in `dist`. Node.js 24 is selected by `.nvmrc` and the `engines` field. Keep `.env` private and configure production credentials through the hosting provider's environment settings.
+`npm start` runs the root `server.js` launcher, which loads the compiled application from `dist/server.js`. This also matches Hostinger's root-level entry-file setting. Node.js 24 is selected by `.nvmrc` and the `engines` field. Keep `.env` private and configure production credentials through the hosting provider's environment settings.
 
 The GitHub Actions workflow at `.github/workflows/production.yml` checks that the backend compiles on Node.js 24. Hostinger remains responsible for deployment from the connected branch; this workflow does not upload code or run database migrations.
