@@ -15,6 +15,8 @@ export type StudentLearningProfile = StudentLearningProfileInput & {
   updatedAt: string;
 };
 
+export type ProfileOptions = { levels: string[]; subjects: string[]; examBoards: string[]; schoolYears: string[]; targetGrades: string[] };
+
 export type StudentRecord = { id: string; username: string; email: string; displayName: string; joinedAt: string; hasLearningProfile: boolean };
 type StudentRecordBase = Omit<StudentRecord, "hasLearningProfile">;
 type StudentRow = RowDataPacket & { id: string; username: string; email: string; display_name: string; created_at: Date; has_learning_profile: number };
@@ -35,13 +37,33 @@ export async function ensureStudentLearningProfileSchema() {
       target_grade VARCHAR(10) NOT NULL,
       tier ENUM('foundation', 'higher', 'not_sure') NULL,
       updated_by_id BIGINT UNSIGNED NOT NULL,
-      updated_by_role ENUM('teacher', 'admin') NOT NULL,
+      updated_by_role ENUM('teacher', 'admin', 'student') NOT NULL,
       created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
       updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
       CONSTRAINT student_learning_profiles_student_fk FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
       KEY student_learning_profiles_updated_at_index (updated_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
+  await database.query(`CREATE TABLE IF NOT EXISTS student_profile_options (
+    id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+    levels JSON NOT NULL, subjects JSON NOT NULL, exam_boards JSON NOT NULL,
+    school_years JSON NOT NULL, target_grades JSON NOT NULL,
+    updated_by_id BIGINT UNSIGNED NULL, updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+  await database.query(`INSERT IGNORE INTO student_profile_options (id, levels, subjects, exam_boards, school_years, target_grades)
+    VALUES (1, '["gcse","igcse_o_level","a_level"]', '["Maths","English","Biology","Chemistry","Physics"]', '["AQA","Edexcel","OCR","WJEC"]', '["Year 9","Year 10","Year 11"]', '["1","2","3","4","5","6","7","8","9"]')`);
+}
+
+export async function getProfileOptions(): Promise<ProfileOptions> {
+ const [rows] = await database.execute<(RowDataPacket & { levels:string; subjects:string; exam_boards:string; school_years:string; target_grades:string })[]>("SELECT levels, subjects, exam_boards, school_years, target_grades FROM student_profile_options WHERE id = 1");
+ const row=rows[0]; if(!row) throw new Error("Student profile options are not configured.");
+ const arr=(v:string)=>typeof v==="string"?JSON.parse(v) as string[]:v as unknown as string[];
+ return {levels:arr(row.levels),subjects:arr(row.subjects),examBoards:arr(row.exam_boards),schoolYears:arr(row.school_years),targetGrades:arr(row.target_grades)};
+}
+
+export async function saveProfileOptions(options: ProfileOptions, updatedById: string) {
+ await database.execute("UPDATE student_profile_options SET levels=?, subjects=?, exam_boards=?, school_years=?, target_grades=?, updated_by_id=? WHERE id=1", [JSON.stringify(options.levels),JSON.stringify(options.subjects),JSON.stringify(options.examBoards),JSON.stringify(options.schoolYears),JSON.stringify(options.targetGrades),updatedById]);
+ return getProfileOptions();
 }
 
 function serialize(row: StudentRow): StudentRecordBase {
@@ -103,7 +125,7 @@ function serializeProfile(row: ProfileRow): StudentLearningProfile {
 export async function saveStudentLearningProfile(
   studentId: string,
   input: StudentLearningProfileInput,
-  updatedBy: { id: string; role: "teacher" | "admin" },
+  updatedBy: { id: string; role: "teacher" | "admin" | "student" },
 ) {
   const [studentRows] = await database.execute<RowDataPacket[]>(
     "SELECT id FROM users WHERE id = ? AND role = 'student' LIMIT 1",

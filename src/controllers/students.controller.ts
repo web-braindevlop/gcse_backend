@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { z } from "zod";
-import { getStudentLearningProfile, listStudents, saveStudentLearningProfile } from "../services/students.service.js";
+import { getProfileOptions, getStudentLearningProfile, listStudents, saveProfileOptions, saveStudentLearningProfile } from "../services/students.service.js";
 
 const studentIdSchema = z.string().regex(/^\d{1,20}$/);
 const learningProfileSchema = z.object({
@@ -61,3 +61,9 @@ export const putStudentProfile: RequestHandler = async (request, response, next)
     response.json({ profile });
   } catch (error) { next(error); }
 };
+
+const optionsSchema=z.object({levels:z.array(z.string().min(1).max(30)).min(1).max(10),subjects:z.array(z.string().trim().min(1).max(80)).min(1).max(100),examBoards:z.array(z.string().trim().min(1).max(80)).min(1).max(30),schoolYears:z.array(z.string().trim().min(1).max(20)).min(1).max(30),targetGrades:z.array(z.string().trim().min(1).max(10)).min(1).max(20)});
+export const readProfileOptions: RequestHandler=async(_req,res,next)=>{try{res.json({options:await getProfileOptions()});}catch(e){next(e);}};
+export const updateProfileOptions: RequestHandler=async(req,res,next)=>{const parsed=optionsSchema.safeParse(req.body);if(!parsed.success){res.status(400).json({error:{message:"Please provide at least one valid option in each list."}});return;}try{const actor=res.locals.authUser as {id:string};res.json({options:await saveProfileOptions(parsed.data,actor.id)});}catch(e){next(e);}};
+export const readOwnStudentProfile: RequestHandler=async(_req,res,next)=>{try{const actor=res.locals.authUser as {id:string};const profile=await getStudentLearningProfile(actor.id);res.json({profile:profile??null});}catch(e){next(e);}};
+export const updateOwnStudentProfile: RequestHandler=async(req,res,next)=>{const input=learningProfileSchema.safeParse(req.body);if(!input.success){res.status(400).json({error:{message:"Please check your learning profile details."}});return;}try{const actor=res.locals.authUser as {id:string;role:"student"};const profile=await saveStudentLearningProfile(actor.id,input.data,actor);res.json({profile});}catch(e){next(e);}};
